@@ -1,6 +1,3 @@
-# \# github-analyzer
+﻿# github-analyzer
 
-# 
-
-# \## Project setup in progress
-
+## Project setup in progress

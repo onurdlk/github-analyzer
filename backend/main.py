@@ -3,11 +3,20 @@ import requests
 import os
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
 app = FastAPI()
+from fastapi.middleware.cors import CORSMiddleware
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 @app.get("/")

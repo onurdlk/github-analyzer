@@ -2,9 +2,9 @@
 
 Running list of known issues, planned improvements, and decisions. Not all of this needs fixing immediately, this is a working log.
 
-## Known Bugs (fix soon)
+## Fixed
 
-- **Contributor count is wrong for popular repos.** GitHub's `/contributors` endpoint paginates results (30 per page by default). We're currently doing `len(response.json())`, which only counts the first page. Repos like `facebook/react` almost certainly have far more than 30 contributors. Needs a real fix: either paginate through all results, or find a way to get GitHub's true total count directly.
+- **Contributor count was wrong for popular repos.** Fixed by properly parsing the `Link` pagination header using `urllib.parse` instead of naive string splitting, which broke because `per_page` contains the substring `page=`.
 
 ## Performance
 

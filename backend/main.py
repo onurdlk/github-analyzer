@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 import requests
 import os
 from dotenv import load_dotenv
+from urllib.parse import urlparse, parse_qs
 
 load_dotenv()
 
@@ -26,8 +27,26 @@ def analyze_repo(owner: str, repo: str):
 
     data = repo_response.json()
 
-    contributors_response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/contributors", headers=headers)
-    contributors_count = len(contributors_response.json()) if contributors_response.status_code == 200 else 0
+    contributors_response = requests.get(
+        f"https://api.github.com/repos/{owner}/{repo}/contributors",
+        headers=headers,
+        params={"per_page": 1, "anon": "true"}
+    )
+
+    if contributors_response.status_code == 200:
+        if "Link" in contributors_response.headers:
+            link_header = contributors_response.headers["Link"]
+            last_links = [link for link in link_header.split(",") if 'rel="last"' in link]
+            if last_links:
+                last_url = last_links[0].split(";")[0].strip().strip("<>")
+                query_params = parse_qs(urlparse(last_url).query)
+                contributors_count = int(query_params["page"][0])
+            else:
+                contributors_count = len(contributors_response.json())
+        else:
+            contributors_count = len(contributors_response.json())
+    else:
+        contributors_count = 0
 
     languages_response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/languages", headers=headers)
     languages = languages_response.json() if languages_response.status_code == 200 else {}
@@ -54,3 +73,9 @@ def analyze_repo(owner: str, repo: str):
         "languages": languages,
         "commit_activity": commit_activity
     }
+
+@app.get("/rate-limit")
+def check_rate_limit():
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+    response = requests.get("https://api.github.com/rate_limit", headers=headers)
+    return response.json()

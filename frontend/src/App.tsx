@@ -1,4 +1,12 @@
 import { useState } from 'react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+
+
+interface CommitWeek {
+  total: number
+  week: number
+  days: number[]
+}
 
 interface RepoData {
   name: string
@@ -11,7 +19,7 @@ interface RepoData {
   last_updated: string
   contributors_count: number
   languages: Record<string, number>
-  commit_activity: unknown
+  commit_activity: CommitWeek[] | 'pending'
 }
 
 function getLanguagePercentages(languages: Record<string, number>) {
@@ -40,11 +48,43 @@ function parseRepoUrl(input: string): { owner: string; repo: string } | null {
   return null
 }
 
+function getDailyData(weeks: CommitWeek[]) {
+  const daily: { date: string; commits: number; timestamp: number }[] = []
+  weeks.forEach((w) => {
+    w.days.forEach((count, i) => {
+      const dayMs = w.week * 1000 + i * 24 * 60 * 60 * 1000
+      daily.push({
+        date: new Date(dayMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        commits: count,
+        timestamp: dayMs,
+      })
+    })
+  })
+  return daily.filter((d) => d.timestamp <= Date.now())
+}
+
+function getChartData(range: 'year' | 'month' | 'week', weeks: CommitWeek[]) {
+  if (range === 'year') {
+    return weeks.map((w, i, arr) => {
+      const weekEndMs = w.week * 1000 + 7 * 24 * 60 * 60 * 1000
+      return {
+        date: new Date(w.week * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        commits: w.total,
+      }
+    })
+  }
+  if (range === 'month') {
+    return getDailyData(weeks.slice(-5)).slice(-30)
+  }
+  return getDailyData(weeks.slice(-1))
+}
+
 function App() {
   const [repoUrl, setRepoUrl] = useState('')
   const [results, setResults] = useState<RepoData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [timeRange, setTimeRange] = useState<'year' | 'month' | 'week'>('year')
 
   const handleAnalyze = async () => {
     const parsed = parseRepoUrl(repoUrl)
@@ -78,6 +118,10 @@ function App() {
       setIsLoading(false)
     }
   }
+
+  const chartData = results && Array.isArray(results.commit_activity)
+    ? getChartData(timeRange, results.commit_activity)
+    : []
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -143,6 +187,49 @@ function App() {
               ))}
             </div>
           </div>
+          {Array.isArray(results.commit_activity) && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold">Commit Activity</h3>
+                <div className="flex gap-2">
+                  {(['week', 'month', 'year'] as const).map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setTimeRange(range)}
+                      className={`px-3 py-1 text-sm rounded ${
+                        timeRange === range
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {range.charAt(0).toUpperCase() + range.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="overflow-hidden">
+                <ResponsiveContainer width="100%" height={250}>
+                  <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 10 }}
+                      interval={timeRange === 'week' ? 0 : 'preserveStartEnd'}
+                    />
+                    <YAxis />
+                    <Tooltip allowEscapeViewBox={{ x: false, y: false }} />
+                    <Line type="monotone" dataKey="commits" stroke="#2563eb" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+
+          {results.commit_activity === 'pending' && (
+            <div className="mt-6 text-sm text-gray-500">
+              Commit activity is still being calculated by GitHub, try again in a moment.
+            </div>
+          )}
         </div>
       )}
     </div>

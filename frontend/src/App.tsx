@@ -20,6 +20,8 @@ interface RepoData {
   contributors_count: number
   languages: Record<string, number>
   commit_activity: CommitWeek[] | 'pending'
+  cached: boolean
+  cache_age_seconds: number
 }
 
 function getLanguagePercentages(languages: Record<string, number>) {
@@ -77,6 +79,13 @@ function getChartData(range: 'year' | 'month' | 'week', weeks: CommitWeek[]) {
     return getDailyData(weeks.slice(-5)).slice(-30)
   }
   return getDailyData(weeks.slice(-1))
+}
+
+function formatCacheAge(seconds: number): string {
+  if (seconds < 60) return `${seconds}s ago`
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes}m ago`
+  return `${Math.floor(minutes / 60)}h ago`
 }
 
 function App() {
@@ -164,10 +173,17 @@ function App() {
         <div className="bg-white rounded p-6 shadow">
           <div className="flex justify-between items-start mb-4">
             <h2 className="text-2xl font-bold">{results.name}</h2>
-            <span className="text-xs text-gray-400">
-              Updated on {new Date(results.last_updated).toLocaleDateString()} at{' '}
-              {new Date(results.last_updated).toLocaleTimeString()}
-            </span>
+            <div className="text-right">
+              <span className="text-xs text-gray-400 block">
+                Updated on {new Date(results.last_updated).toLocaleDateString()} at{' '}
+                {new Date(results.last_updated).toLocaleTimeString()}
+              </span>
+              {results.cached ? (
+                <span className="text-xs text-amber-600">⚡ Cached {formatCacheAge(results.cache_age_seconds)}</span>
+              ) : (
+                <span className="text-xs text-green-600">● Live data</span>
+              )}
+            </div>
           </div>
           <p className="text-gray-600 mb-4">{results.description}</p>
           <div className="grid grid-cols-2 gap-4">

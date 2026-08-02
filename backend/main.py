@@ -3,7 +3,6 @@ import requests
 import os
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
-from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 import json
@@ -30,7 +29,6 @@ init_db()
 load_dotenv()
 
 app = FastAPI()
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
@@ -123,11 +121,12 @@ def analyze_repo(owner: str, repo: str):
         "cache_age_seconds": 0,
     }
 
-    conn.execute(
-        "INSERT OR REPLACE INTO repo_cache (owner, repo, data, cached_at) VALUES (?, ?, ?, ?)",
-        (owner, repo, json.dumps(result), time.time())
-    )
-    conn.commit()
+    if commit_activity != "pending":
+        conn.execute(
+            "INSERT OR REPLACE INTO repo_cache (owner, repo, data, cached_at) VALUES (?, ?, ?, ?)",
+            (owner, repo, json.dumps(result), time.time())
+        )
+        conn.commit()
     conn.close()
 
     return result

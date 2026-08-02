@@ -42,6 +42,48 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 def root():
     return {"message": "GitHub Analyzer API is running"}
 
+def calculate_health_score(contributors_count, commit_activity, open_issues, description, has_readme):
+    if isinstance(commit_activity, list) and len(commit_activity) > 0:
+        recent_commits = sum(w["total"] for w in commit_activity[-4:])
+    else:
+        recent_commits = 0
+    activity_score = min(recent_commits / 20 * 40, 40)
+
+    if contributors_count >= 21:
+        contributors_score = 20
+    elif contributors_count >= 6:
+        contributors_score = 15
+    elif contributors_count >= 2:
+        contributors_score = 10
+    else:
+        contributors_score = 5
+
+    docs_score = (15 if has_readme else 0) + (5 if description else 0)
+
+    issue_ratio = open_issues / max(contributors_count, 1)
+    if issue_ratio <= 2:
+        issues_score = 20
+    elif issue_ratio <= 5:
+        issues_score = 15
+    elif issue_ratio <= 15:
+        issues_score = 10
+    elif issue_ratio <= 50:
+        issues_score = 5
+    else:
+        issues_score = 0
+
+    total = round(activity_score + contributors_score + docs_score + issues_score)
+
+    return {
+        "total": total,
+        "breakdown": {
+            "activity": round(activity_score),
+            "contributors": contributors_score,
+            "documentation": docs_score,
+            "issues": issues_score,
+        },
+    }
+
 @app.get("/analyze/{owner}/{repo}")
 def analyze_repo(owner: str, repo: str):
     conn = sqlite3.connect(DB_PATH)
@@ -105,6 +147,9 @@ def analyze_repo(owner: str, repo: str):
     else:
         commit_activity = []
 
+    readme_response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/readme", headers=headers)
+    has_readme = readme_response.status_code == 200
+
     result = {
         "name": data["name"],
         "description": data["description"],
@@ -117,6 +162,7 @@ def analyze_repo(owner: str, repo: str):
         "contributors_count": contributors_count,
         "languages": languages,
         "commit_activity": commit_activity,
+        "health_score": calculate_health_score(contributors_count, commit_activity, data["open_issues_count"], data["description"], has_readme),
         "cached": False,
         "cache_age_seconds": 0,
     }
@@ -128,6 +174,8 @@ def analyze_repo(owner: str, repo: str):
         )
         conn.commit()
     conn.close()
+
+    
 
     return result
 

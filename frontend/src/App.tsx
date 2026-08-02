@@ -8,6 +8,16 @@ interface CommitWeek {
   days: number[]
 }
 
+interface HealthScore {
+  total: number
+  breakdown: {
+    activity: number
+    contributors: number
+    documentation: number
+    issues: number
+  }
+}
+
 interface RepoData {
   name: string
   description: string
@@ -20,8 +30,15 @@ interface RepoData {
   contributors_count: number
   languages: Record<string, number>
   commit_activity: CommitWeek[] | 'pending'
+  health_score: HealthScore
   cached: boolean
   cache_age_seconds: number
+}
+
+function getHealthColor(score: number) {
+  if (score >= 80) return { text: 'text-green-600', bg: 'bg-green-100' }
+  if (score >= 50) return { text: 'text-amber-600', bg: 'bg-amber-100' }
+  return { text: 'text-red-600', bg: 'bg-red-100' }
 }
 
 function getLanguagePercentages(languages: Record<string, number>) {
@@ -172,7 +189,14 @@ function App() {
       {results && (
         <div className="bg-white rounded p-6 shadow">
           <div className="flex justify-between items-start mb-4">
-            <h2 className="text-2xl font-bold">{results.name}</h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold">{results.name}</h2>
+              <span
+                className={`text-sm font-bold px-2 py-1 rounded ${getHealthColor(results.health_score.total).bg} ${getHealthColor(results.health_score.total).text}`}
+              >
+                {results.health_score.total}/100
+              </span>
+            </div>
             <div className="text-right">
               <span className="text-xs text-gray-400 block">
                 Updated on {new Date(results.last_updated).toLocaleDateString()} at{' '}
@@ -193,12 +217,25 @@ function App() {
             <div className="bg-gray-50 p-4 rounded">👥 Contributors: {results.contributors_count}</div>
           </div>
           <div className="mt-4">
-            <h3 className="font-semibold mb-2">Language Breakdown</h3>
+            <h3 className="font-semibold mb-2">Health Score Breakdown</h3>
             <div className="space-y-2">
-              {getLanguagePercentages(results.languages).map((lang) => (
-                <div key={lang.name} className="flex justify-between text-sm">
-                  <span>{lang.name}</span>
-                  <span className="text-gray-500">{lang.percentage}%</span>
+              {[
+                { label: 'Activity', value: results.health_score.breakdown.activity, max: 40 },
+                { label: 'Contributors', value: results.health_score.breakdown.contributors, max: 20 },
+                { label: 'Documentation', value: results.health_score.breakdown.documentation, max: 20 },
+                { label: 'Issue Health', value: results.health_score.breakdown.issues, max: 20 },
+              ].map((item) => (
+                <div key={item.label}>
+                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                    <span>{item.label}</span>
+                    <span>{item.value}/{item.max}</span>
+                  </div>
+                  <div className="w-full bg-gray-100 rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-blue-500"
+                      style={{ width: `${(item.value / item.max) * 100}%` }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>

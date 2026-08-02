@@ -9,26 +9,32 @@ Running list of known issues, planned improvements, and decisions.
 - **No loading/error feedback on frontend.** Added a loading state and visible error messages instead of silent console logs.
 - **URL parsing was too strict.** Now handles missing protocol, trailing slashes, extra path segments, bare `owner/repo`, and is case-insensitive.
 - **Commit activity chart added.** Line chart with Year/Month/Week toggle, using commit_activity's weekly totals plus each week's daily breakdown.
+- **SQLite caching added.** Analyzed repo data is stored with a timestamp and served from cache if recent (1 hour TTL), only hits GitHub again if stale. Fixed both speed and rate-limit exposure on repeat searches. Response includes `cached: true/false` and `cache_age_seconds` so the frontend can show freshness.
+- **Sequential GitHub calls made concurrent.** Switched from `requests` to `httpx` + `asyncio.gather`. Repo info still fetches first (need the 404 check before anything else), but contributors, languages, commit activity, and the README check now run in parallel. Noticeably faster on cache misses.
+- **Rate limiting added on our own API.** `slowapi`, 10 requests/minute per IP on `/analyze`. Protects the shared GitHub token from being drained by a bot or a loop. Returns a clear "Too many requests" message on the frontend instead of a generic error.
+- **Health score and repo comparison built.** Health score formula (activity/contributors/documentation/issues out of 100). Comparison mode fetches two repos in parallel with `Promise.allSettled`, shows them side by side, highlights whichever wins each metric.
 
 ## Performance & Rate Limits
 
-- `/analyze/{owner}/{repo}` makes 4 sequential GitHub API calls per search (repo info, contributors, languages, commit activity). Slow (1-2+ sec) and burns through the rate limit fast.
-- 5000 requests/hour authenticated. At 4 calls/search that's ~1250 searches/hour, shared across everyone once deployed.
-- **Fix, top priority for Phase 6: SQLite caching.** Store analyzed repo data with a timestamp, serve from cache if recent, only hit GitHub again if stale. Fixes both the speed and the rate limit exposure at once.
-- Could also speed things up later with concurrent/async requests instead of sequential, more advanced, lower priority than caching.
+- Fresh (uncached) search: 1 call for repo info, then 4 more in parallel (contributors, languages, commit activity, README) = 5 GitHub calls total. Cached search: 0 calls.
+- 5000 requests/hour authenticated, shared across everyone once deployed. Caching means this is really only a concern for the *first* search of any given repo, not repeat traffic.
+- **Known limitation: cache rows never expire/delete.** `repo_cache` grows forever. Not a real problem at this scale, worth a periodic cleanup eventually (delete rows older than some threshold).
 - Token expires in 90 days from creation, remember to regenerate.
-- **Known limitation: cache rows never expire/delete.** `repo_cache` grows forever, every unique repo searched stays in there permanently. Not a real problem at this scale (SQLite handles many thousands of rows fine), but worth fixing eventually, e.g. a periodic cleanup deleting rows older than some threshold.
-- **Cache status flag added.** Response includes `cached: true/false` and `cache_age_seconds`, frontend can use this to show whether data is fresh or served from cache.
 
+## Future Scaling (not needed yet, real upgrade path if this grows)
+
+- **Postgres instead of SQLite.** Not a current bottleneck, but a real, learnable upgrade if we want production-database experience or actually hit SQLite's concurrent-write limits.
+- **GitHub App instead of a personal token.** Rate limits scale with usage instead of one fixed 5000/hour bucket. Only worth the setup complexity if we're regularly hitting the ceiling, not there yet.
+- **Redis for hot-repo caching.** Faster than SQLite for frequently-requested repos. Real production pattern, overkill at current scale.
+- **Edge caching (e.g. Cloudflare)** in front of the API, catches repeat requests before they even reach the backend. Same story, real technique, not needed yet.
 
 ## Security
 
 - **RLS not needed right now.** No user accounts, no private data, the SQLite cache is just public repo info. Revisit if accounts/saved searches get added.
-- **SQL injection is the real concern.** Owner/repo values come from user input and will get used in SQLite queries. Always use parameterized queries, never string-format user input into SQL.
-- **Rate-limit our own API before deploying.** Otherwise anyone hitting a live `/analyze/...` could burn our shared GitHub token's rate limit.
+- **SQL injection is the real concern.** Owner/repo values come from user input and get used in SQLite queries. Always use parameterized queries, never string-format user input into SQL. Already done this way.
 - **Restrict CORS to the real deployed frontend URL**, not localhost, once live.
 - **Confirm HTTPS is on** for both deployed frontend and backend (usually automatic on Vercel/Render, worth checking).
-- Token already stays server-side only (`.env`, never sent to the browser). Keep it that way.
+- Token stays server-side only (`.env`, never sent to the browser). Keep it that way.
 
 ## Legal / Disclaimer
 
@@ -55,8 +61,8 @@ Running list of known issues, planned improvements, and decisions.
 
 ## Code Structure
 
-- `main.py` is one file right now, fine for now. Split into separate files (routes, GitHub logic, scoring logic) once it starts feeling cluttered.
+- `main.py` is one file, growing. Split into separate files (routes, GitHub logic, scoring logic) once it starts feeling cluttered, worth considering soon given its current size.
 
 ## Roadmap
 
-- Automated tests (pytest), makes more sense once there's stable logic worth testing, like the health score formula.
+- Automated tests (pytest), makes more sense now that there's stable logic worth testing (health score formula, caching behavior).

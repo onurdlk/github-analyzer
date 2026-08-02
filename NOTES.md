@@ -1,61 +1,59 @@
 # Project Notes
 
-Running list of known issues, planned improvements, and decisions. Not all of this needs fixing immediately, this is a working log.
+Running list of known issues, planned improvements, and decisions.
 
 ## Fixed
 
-- **Contributor count was wrong for popular repos.** Fixed by properly parsing the `Link` pagination header using `urllib.parse` instead of naive string splitting, which broke because `per_page` contains the substring `page=`.
-- **Language breakdown wasn't displayed.** Backend already fetched full language byte-counts, frontend only showed the single primary language. Added a percentage breakdown component.
-- **No loading/error feedback on frontend.** Added loading state (button disables and shows "Analyzing...") and visible error messages (instead of silent console logs) when a repo isn't found or the request fails.
-- **URL parsing was too strict.** Now handles missing protocol, trailing slashes, extra path segments (e.g. `/tree/main`), bare `owner/repo` input, and is case-insensitive.
-- **Commit activity chart added.** Line chart with Year/Month/Week toggle, using GitHub's weekly commit_activity data (and each week's daily `days` array for the Month/Week views).
+- **Contributor count was wrong for popular repos.** GitHub paginates the `/contributors` endpoint (30 per page). Fixed by parsing the `Link` header properly with `urllib.parse` instead of naive string splitting (which broke on `per_page` containing the substring `page=`).
+- **Language breakdown wasn't displayed.** Backend already had the byte-count data, frontend only showed the primary language. Added a real percentage breakdown.
+- **No loading/error feedback on frontend.** Added a loading state and visible error messages instead of silent console logs.
+- **URL parsing was too strict.** Now handles missing protocol, trailing slashes, extra path segments, bare `owner/repo`, and is case-insensitive.
+- **Commit activity chart added.** Line chart with Year/Month/Week toggle, using commit_activity's weekly totals plus each week's daily breakdown.
 
-## Performance
+## Performance & Rate Limits
 
-- `/analyze/{owner}/{repo}` makes 4 sequential requests to GitHub (repo info, contributors, languages, commit activity), one after another. This makes the endpoint noticeably slow (1-2+ seconds). Could be sped up later using async/concurrent requests, a more advanced technique than what we've covered so far.
-- No caching yet. Every search re-fetches everything from GitHub, even for repos just searched seconds ago. Planned fix: SQLite caching in Phase 6.
+- `/analyze/{owner}/{repo}` makes 4 sequential GitHub API calls per search (repo info, contributors, languages, commit activity). Slow (1-2+ sec) and burns through the rate limit fast.
+- 5000 requests/hour authenticated. At 4 calls/search that's ~1250 searches/hour, shared across everyone once deployed.
+- **Fix, top priority for Phase 6: SQLite caching.** Store analyzed repo data with a timestamp, serve from cache if recent, only hit GitHub again if stale. Fixes both the speed and the rate limit exposure at once.
+- Could also speed things up later with concurrent/async requests instead of sequential, more advanced, lower priority than caching.
+- Token expires in 90 days from creation, remember to regenerate.
 
-## Rate Limits
+## Security
 
-- Authenticated limit is 5000 requests/hour. At 4 calls per search, that's roughly 1250 searches/hour, shared across all users once this is live, not per-visitor.
-- Caching is the main fix for this, should be prioritized in Phase 6 over other features.
-- Token expires in 90 days from creation (set up in Phase 4). Remember to regenerate before it expires.
+- **RLS not needed right now.** No user accounts, no private data, the SQLite cache is just public repo info. Revisit if accounts/saved searches get added.
+- **SQL injection is the real concern.** Owner/repo values come from user input and will get used in SQLite queries. Always use parameterized queries, never string-format user input into SQL.
+- **Rate-limit our own API before deploying.** Otherwise anyone hitting a live `/analyze/...` could burn our shared GitHub token's rate limit.
+- **Restrict CORS to the real deployed frontend URL**, not localhost, once live.
+- **Confirm HTTPS is on** for both deployed frontend and backend (usually automatic on Vercel/Render, worth checking).
+- Token already stays server-side only (`.env`, never sent to the browser). Keep it that way.
 
-## Database Design Decisions
+## Legal / Disclaimer
 
-- **Row-level security is not needed at this stage.** RLS restricts which database rows a specific user can see, but this project has no user accounts and no private per-user data. The planned SQLite cache only stores public GitHub repo data. Revisit if user accounts, saved searches, or comparison history are ever added.
-- **SQL injection is the real concern instead.** When building the SQLite caching layer (Phase 6), owner/repo values come from user input. Must use parameterized queries, never raw string formatting, when building any SQL that includes user input.
+- Not legal advice, just the practical plan. Currently low risk: no accounts, no cookies, no data collection.
+- Gets more relevant if we add analytics, cookies, accounts, or logging of AI requests.
+- Plan: short disclaimer/footer once deployed, educational project, pulls public GitHub data live, not affiliated with GitHub, no stored visitor data, provided as-is.
+- Worth skimming GitHub's API Terms of Service before going live.
+- Get real legal advice if this ever gets real traffic or money involved.
 
-## Planned: AI Summary Feature (Phase 6, cost-controlled design)
+## Planned: AI Summary Feature
 
-- **Model**: Claude Haiku 4.5, cheapest current Claude model, well-suited to short factual summaries. Verify current pricing at docs.claude.com before implementing, rates can change.
-- **Cache summaries per repo** in SQLite. Repeat searches for the same repo reuse the cached summary instead of calling the AI again.
-- **Opt-in only.** A separate "Generate AI Summary" button, not run automatically on every search, so it only costs money when explicitly requested.
-- **Hard daily cap** on total AI generations (server-side counter), independent of caching, to bound worst-case cost regardless of traffic.
-- **Low `max_tokens` limit** on the API call to cap the cost of any single request.
-- **Set an actual spending limit on the API key in the Anthropic Console**, a real account-level safety net beyond our own code.
+- Opt-in only, a "Generate AI Summary" button, not automatic on every search.
+- Cache summaries per repo in SQLite, same idea as the main caching plan.
+- Hard daily cap on total AI generations, independent of caching.
+- Low `max_tokens` limit per call.
+- Set an actual spending cap on the API key in the provider's console, real safety net beyond our own code.
+- **Model not decided yet.** Compared per-token pricing: GPT-5 nano ($0.05/$0.40 per million), Gemini 3.1 Flash-Lite ($0.25/$1.50), Gemini 2.5 Flash ($0.30/$2.50), Claude Haiku 4.5 ($1.00/$5.00). Haiku isn't the cheapest for a task this simple, but at our scale the dollar difference is basically nothing. Decide on ease of integration when we build it, not price. DeepSeek is cheapest overall but has different data/privacy terms, worth weighing given our privacy stance above.
 
-## Deployment Notes
+## Deployment
 
-- Local `uvicorn` / `npm run dev` are dev-only. Once deployed (Phase 7): frontend on Vercel, backend on Render/Railway, both run continuously on their servers, independent of whether the local machine is on.
-- Free hosting tiers may "spin down" the backend after a period of inactivity, causing a slower first response (10-30 sec) after idle periods. Site is still reachable, just slower on the first request. A known tradeoff of free tiers, not a bug.
+- Local `uvicorn`/`npm run dev` are dev-only. Once deployed: frontend on Vercel, backend on Render/Railway, both run independently of whether the local machine is on.
+- Free tiers may spin down the backend after inactivity, slower first response (10-30 sec) after idle. Still reachable, just slower once in a while. Normal for free tiers.
+- Could deploy a basic version earlier than Phase 7 if we want it live/shareable sooner. Optional.
 
-## Security & Deployment Readiness (before Phase 7 goes live)
+## Code Structure
 
-- **Not urgent while running locally.** Backend only listens on 127.0.0.1, not reachable from outside this machine. These items matter once there's a public URL.
-- **Rate-limit our own API endpoints.** Right now, anyone hitting a deployed `/analyze/...` could burn through our shared GitHub token's rate limit. Add per-IP or per-timeframe limiting before going public.
-- **Restrict CORS to the real deployed frontend URL**, not just localhost, once deployed.
-- **Confirm HTTPS is active** on both deployed frontend and backend (usually automatic on platforms like Vercel/Render, but worth verifying).
-- **Token stays server-side only.** Already done correctly, GITHUB_TOKEN lives only in backend `.env`, never sent to the browser. Keep it this way.
+- `main.py` is one file right now, fine for now. Split into separate files (routes, GitHub logic, scoring logic) once it starts feeling cluttered.
 
-## Coming Up Soon (not bugs, just not built yet)
+## Roadmap
 
-- Consider moving a basic deployment earlier than Phase 7, so the project is visible/shareable sooner, optional.
-
-## Structural / Extensibility
-
-- `main.py` is currently one file. Fine for now, but as more endpoints and logic get added, this should be split into separate files (e.g. routes, GitHub API logic, scoring logic).
-
-## Not Built Yet (lower priority)
-
-- Automated tests (pytest). Makes more sense once there's stable logic worth testing, like the health score formula in Phase 6.
+- Automated tests (pytest), makes more sense once there's stable logic worth testing, like the health score formula.

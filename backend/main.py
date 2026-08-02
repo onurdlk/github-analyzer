@@ -5,7 +5,28 @@ from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import sqlite3
+import json
+import time
 
+DB_PATH = "cache.db"
+CACHE_TTL_SECONDS = 3600  # 1 hour
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS repo_cache (
+            owner TEXT NOT NULL,
+            repo TEXT NOT NULL,
+            data TEXT NOT NULL,
+            cached_at REAL NOT NULL,
+            PRIMARY KEY (owner, repo)
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_db()
 load_dotenv()
 
 app = FastAPI()
@@ -25,13 +46,30 @@ def root():
 
 @app.get("/analyze/{owner}/{repo}")
 def analyze_repo(owner: str, repo: str):
+    conn = sqlite3.connect(DB_PATH)
+    cached = conn.execute(
+        "SELECT data, cached_at FROM repo_cache WHERE owner = ? AND repo = ?",
+        (owner, repo)
+    ).fetchone()
+
+    if cached:
+        data_json, cached_at = cached
+        if time.time() - cached_at < CACHE_TTL_SECONDS:
+            conn.close()
+            result = json.loads(data_json)
+            result["cached"] = True
+            result["cache_age_seconds"] = int(time.time() - cached_at)
+            return result
+
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
 
     repo_response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)
 
     if repo_response.status_code == 404:
+        conn.close()
         raise HTTPException(status_code=404, detail=f"Repository '{owner}/{repo}' not found")
     if repo_response.status_code != 200:
+        conn.close()
         raise HTTPException(status_code=repo_response.status_code, detail="Error fetching repository data")
 
     data = repo_response.json()
@@ -69,7 +107,7 @@ def analyze_repo(owner: str, repo: str):
     else:
         commit_activity = []
 
-    return {
+    result = {
         "name": data["name"],
         "description": data["description"],
         "owner": data["owner"]["login"],
@@ -80,8 +118,19 @@ def analyze_repo(owner: str, repo: str):
         "last_updated": data["updated_at"],
         "contributors_count": contributors_count,
         "languages": languages,
-        "commit_activity": commit_activity
+        "commit_activity": commit_activity,
+        "cached": False,
+        "cache_age_seconds": 0,
     }
+
+    conn.execute(
+        "INSERT OR REPLACE INTO repo_cache (owner, repo, data, cached_at) VALUES (?, ?, ?, ?)",
+        (owner, repo, json.dumps(result), time.time())
+    )
+    conn.commit()
+    conn.close()
+
+    return result
 
 @app.get("/rate-limit")
 def check_rate_limit():

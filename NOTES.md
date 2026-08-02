@@ -18,6 +18,8 @@ Running list of known issues, planned improvements, and decisions.
 - Could also speed things up later with concurrent/async requests instead of sequential, more advanced, lower priority than caching.
 - Token expires in 90 days from creation, remember to regenerate.
 - **Known limitation: cache rows never expire/delete.** `repo_cache` grows forever, every unique repo searched stays in there permanently. Not a real problem at this scale (SQLite handles many thousands of rows fine), but worth fixing eventually, e.g. a periodic cleanup deleting rows older than some threshold.
+- **Not built yet: cache status flag.** Return `cached: true/false` (and maybe `cache_age_seconds`) in the response so the frontend can show whether data is fresh or served from cache. Low effort, holding off for now.
+
 
 ## Security
 

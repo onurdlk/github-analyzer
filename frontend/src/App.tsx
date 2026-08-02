@@ -239,7 +239,7 @@ async function fetchRepoData(url: string): Promise<RepoData> {
 
   if (!response.ok) {
     const errorData = await response.json()
-    throw new Error(errorData.detail || 'Something went wrong')
+    throw new Error(errorData.detail || 'Too many requests, please wait a moment.')
   }
 
   return response.json()

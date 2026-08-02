@@ -1,12 +1,17 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+import httpx
 import requests
 import os
 from dotenv import load_dotenv
 from urllib.parse import urlparse, parse_qs
-from fastapi.middleware.cors import CORSMiddleware
 import sqlite3
 import json
 import time
+import asyncio
 
 DB_PATH = "cache.db"
 CACHE_TTL_SECONDS = 3600  # 1 hour
@@ -28,7 +33,11 @@ def init_db():
 init_db()
 load_dotenv()
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,11 +45,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
 
 @app.get("/")
 def root():
     return {"message": "GitHub Analyzer API is running"}
+
 
 def calculate_health_score(contributors_count, commit_activity, open_issues, description, has_readme):
     if isinstance(commit_activity, list) and len(commit_activity) > 0:
@@ -84,8 +96,23 @@ def calculate_health_score(contributors_count, commit_activity, open_issues, des
         },
     }
 
+
+def get_contributors_count(response: httpx.Response) -> int:
+    if response.status_code != 200:
+        return 0
+    if "Link" in response.headers:
+        link_header = response.headers["Link"]
+        last_links = [link for link in link_header.split(",") if 'rel="last"' in link]
+        if last_links:
+            last_url = last_links[0].split(";")[0].strip().strip("<>")
+            query_params = parse_qs(urlparse(last_url).query)
+            return int(query_params["page"][0])
+    return len(response.json())
+
+
 @app.get("/analyze/{owner}/{repo}")
-def analyze_repo(owner: str, repo: str):
+@limiter.limit("10/minute")
+async def analyze_repo(request: Request, owner: str, repo: str):
     conn = sqlite3.connect(DB_PATH)
     cached = conn.execute(
         "SELECT data, cached_at FROM repo_cache WHERE owner = ? AND repo = ?",
@@ -103,42 +130,31 @@ def analyze_repo(owner: str, repo: str):
 
     headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
 
-    repo_response = requests.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)
+    async with httpx.AsyncClient() as client:
+        repo_response = await client.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)
 
-    if repo_response.status_code == 404:
-        conn.close()
-        raise HTTPException(status_code=404, detail=f"Repository '{owner}/{repo}' not found")
-    if repo_response.status_code != 200:
-        conn.close()
-        raise HTTPException(status_code=repo_response.status_code, detail="Error fetching repository data")
+        if repo_response.status_code == 404:
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Repository '{owner}/{repo}' not found")
+        if repo_response.status_code != 200:
+            conn.close()
+            raise HTTPException(status_code=repo_response.status_code, detail="Error fetching repository data")
 
-    data = repo_response.json()
+        data = repo_response.json()
 
-    contributors_response = requests.get(
-        f"https://api.github.com/repos/{owner}/{repo}/contributors",
-        headers=headers,
-        params={"per_page": 1, "anon": "true"}
-    )
+        contributors_response, languages_response, commit_activity_response, readme_response = await asyncio.gather(
+            client.get(
+                f"https://api.github.com/repos/{owner}/{repo}/contributors",
+                headers=headers,
+                params={"per_page": 1, "anon": "true"},
+            ),
+            client.get(f"https://api.github.com/repos/{owner}/{repo}/languages", headers=headers),
+            client.get(f"https://api.github.com/repos/{owner}/{repo}/stats/commit_activity", headers=headers),
+            client.get(f"https://api.github.com/repos/{owner}/{repo}/readme", headers=headers),
+        )
 
-    if contributors_response.status_code == 200:
-        if "Link" in contributors_response.headers:
-            link_header = contributors_response.headers["Link"]
-            last_links = [link for link in link_header.split(",") if 'rel="last"' in link]
-            if last_links:
-                last_url = last_links[0].split(";")[0].strip().strip("<>")
-                query_params = parse_qs(urlparse(last_url).query)
-                contributors_count = int(query_params["page"][0])
-            else:
-                contributors_count = len(contributors_response.json())
-        else:
-            contributors_count = len(contributors_response.json())
-    else:
-        contributors_count = 0
-
-    languages_response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/languages", headers=headers)
+    contributors_count = get_contributors_count(contributors_response)
     languages = languages_response.json() if languages_response.status_code == 200 else {}
-
-    commit_activity_response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/stats/commit_activity", headers=headers)
 
     if commit_activity_response.status_code == 202:
         commit_activity = "pending"
@@ -147,7 +163,6 @@ def analyze_repo(owner: str, repo: str):
     else:
         commit_activity = []
 
-    readme_response = requests.get(f"https://api.github.com/repos/{owner}/{repo}/readme", headers=headers)
     has_readme = readme_response.status_code == 200
 
     result = {
@@ -175,9 +190,8 @@ def analyze_repo(owner: str, repo: str):
         conn.commit()
     conn.close()
 
-    
-
     return result
+
 
 @app.get("/rate-limit")
 def check_rate_limit():

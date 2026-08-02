@@ -8,6 +8,7 @@ Running list of known issues, planned improvements, and decisions. Not all of th
 - **Language breakdown wasn't displayed.** Backend already fetched full language byte-counts, frontend only showed the single primary language. Added a percentage breakdown component.
 - **No loading/error feedback on frontend.** Added loading state (button disables and shows "Analyzing...") and visible error messages (instead of silent console logs) when a repo isn't found or the request fails.
 - **URL parsing was too strict.** Now handles missing protocol, trailing slashes, extra path segments (e.g. `/tree/main`), bare `owner/repo` input, and is case-insensitive.
+- **Commit activity chart added.** Line chart with Year/Month/Week toggle, using GitHub's weekly commit_activity data (and each week's daily `days` array for the Month/Week views).
 
 ## Performance
 
@@ -19,6 +20,25 @@ Running list of known issues, planned improvements, and decisions. Not all of th
 - Authenticated limit is 5000 requests/hour. At 4 calls per search, that's roughly 1250 searches/hour, shared across all users once this is live, not per-visitor.
 - Caching is the main fix for this, should be prioritized in Phase 6 over other features.
 - Token expires in 90 days from creation (set up in Phase 4). Remember to regenerate before it expires.
+
+## Database Design Decisions
+
+- **Row-level security is not needed at this stage.** RLS restricts which database rows a specific user can see, but this project has no user accounts and no private per-user data. The planned SQLite cache only stores public GitHub repo data. Revisit if user accounts, saved searches, or comparison history are ever added.
+- **SQL injection is the real concern instead.** When building the SQLite caching layer (Phase 6), owner/repo values come from user input. Must use parameterized queries, never raw string formatting, when building any SQL that includes user input.
+
+## Planned: AI Summary Feature (Phase 6, cost-controlled design)
+
+- **Model**: Claude Haiku 4.5, cheapest current Claude model, well-suited to short factual summaries. Verify current pricing at docs.claude.com before implementing, rates can change.
+- **Cache summaries per repo** in SQLite. Repeat searches for the same repo reuse the cached summary instead of calling the AI again.
+- **Opt-in only.** A separate "Generate AI Summary" button, not run automatically on every search, so it only costs money when explicitly requested.
+- **Hard daily cap** on total AI generations (server-side counter), independent of caching, to bound worst-case cost regardless of traffic.
+- **Low `max_tokens` limit** on the API call to cap the cost of any single request.
+- **Set an actual spending limit on the API key in the Anthropic Console**, a real account-level safety net beyond our own code.
+
+## Deployment Notes
+
+- Local `uvicorn` / `npm run dev` are dev-only. Once deployed (Phase 7): frontend on Vercel, backend on Render/Railway, both run continuously on their servers, independent of whether the local machine is on.
+- Free hosting tiers may "spin down" the backend after a period of inactivity, causing a slower first response (10-30 sec) after idle periods. Site is still reachable, just slower on the first request. A known tradeoff of free tiers, not a bug.
 
 ## Security & Deployment Readiness (before Phase 7 goes live)
 

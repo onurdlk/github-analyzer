@@ -123,7 +123,7 @@ function RepoCard({ data, winsStars, winsForks, winsContributors, winsHealth }: 
     setDisplayedSummary('')
 
     try {
-      const response = await fetch(`http://127.0.0.1:8000/analyze/${data.owner}/${data.name}/summary`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/analyze/${data.owner}/${data.name}/summary`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -326,7 +326,7 @@ async function fetchRepoData(url: string): Promise<RepoData> {
     throw new Error('Please enter a valid GitHub repository URL (e.g. github.com/owner/repo)')
   }
 
-  const response = await fetch(`http://127.0.0.1:8000/analyze/${parsed.owner}/${parsed.repo}`)
+const response = await fetch(`${import.meta.env.VITE_API_URL}/analyze/${parsed.owner}/${parsed.repo}`)
 
   if (!response.ok) {
     const errorData = await response.json()

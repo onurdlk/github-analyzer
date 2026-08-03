@@ -229,6 +229,30 @@ function RepoCard({ data, winsStars, winsForks, winsContributors, winsHealth }: 
   )
 }
 
+function PrivacyModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
+      <div className="bg-white rounded p-6 max-w-lg w-full shadow-lg" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-4">
+          <h2 className="text-xl font-bold">Privacy Notice</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none" aria-label="Close">
+            ×
+          </button>
+        </div>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          This is an educational portfolio project. It pulls public repository data live from GitHub's API and
+          displays it, no accounts, no signup, no cookies, no tracking. Your IP address is used briefly, in memory
+          only, to enforce a rate limit that protects the site from abuse, it isn't stored or linked to anything
+          else. The hosting provider independently logs basic access data (IP, timestamp) as standard practice,
+          governed by their own privacy policy. If the AI summary feature is used, the repository data shown,
+          already public on GitHub, may be sent to Groq's API to generate a short summary. No data here is sold or
+          shared for advertising. This project isn't affiliated with GitHub.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 async function fetchRepoData(url: string): Promise<RepoData> {
   const parsed = parseRepoUrl(url)
   if (!parsed) {
@@ -245,12 +269,13 @@ async function fetchRepoData(url: string): Promise<RepoData> {
   return response.json()
 }
 
+
 function App() {
   const [repoUrl, setRepoUrl] = useState('')
   const [results, setResults] = useState<RepoData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-
+  const [showPrivacy, setShowPrivacy] = useState(false)
   const [compareMode, setCompareMode] = useState(false)
   const [repoUrl2, setRepoUrl2] = useState('')
   const [results2, setResults2] = useState<RepoData | null>(null)
@@ -409,6 +434,13 @@ function App() {
           </div>
         )}
       </div>
+      <footer className="mt-10 pt-6 border-t border-gray-200 text-center text-xs text-gray-400">
+        <button onClick={() => setShowPrivacy(true)} className="underline hover:text-gray-600">
+          Privacy
+        </button>
+      </footer>
+
+      {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
     </div>
   )
 }

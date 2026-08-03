@@ -13,6 +13,7 @@ Running list of known issues, planned improvements, and decisions.
 - **Sequential GitHub calls made concurrent.** Switched from `requests` to `httpx` + `asyncio.gather`. Repo info still fetches first (need the 404 check before anything else), but contributors, languages, commit activity, and the README check now run in parallel. Noticeably faster on cache misses.
 - **Rate limiting added on our own API.** `slowapi`, 10 requests/minute per IP on `/analyze`. Protects the shared GitHub token from being drained by a bot or a loop. Returns a clear "Too many requests" message on the frontend instead of a generic error.
 - **Health score and repo comparison built.** Health score formula (activity/contributors/documentation/issues out of 100). Comparison mode fetches two repos in parallel with `Promise.allSettled`, shows them side by side, highlights whichever wins each metric.
+- **Backend URL no longer hardcoded.** Frontend reads `VITE_API_URL` from an environment variable instead of hardcoding `127.0.0.1:8000`. Set in `frontend/.env` locally, will be set in Vercel's dashboard at deploy time. `.env.example` documents it.
 
 ## AI Summary Feature (done)
 
@@ -20,6 +21,20 @@ Running list of known issues, planned improvements, and decisions.
 - Opt-in button, cached per repo in SQLite (24h TTL), 50/day hard cap independent of caching, 150 max_tokens per call.
 - Frontend does a simple typewriter reveal on the returned text, no real streaming, just animating the already-complete response.
 - Debug print added on Groq API failures (`print(f"Groq API error..."`) so real errors show in the terminal instead of only a generic message reaching the user.
+
+## Privacy Notice (done)
+
+- Implemented as a footer link ("Privacy") that opens a modal on the site, plus a standalone `PRIVACY.md` in the repo root, same text in both places.
+- Known small maintenance note: the two copies aren't linked, if the text ever changes, both need updating manually.
+- Covers: no accounts/cookies/tracking, IP used transiently for our own rate limiting, hosting provider's own standard access logging, and that repo data may be sent to Groq if the AI summary is used.
+
+## Design & UI (done)
+
+- Moved off default Tailwind styling to a real token system: JetBrains Mono for data/headers, Manrope for body text, defined via Tailwind v4's `@theme` in `index.css`.
+- Color tokens: brand violet-indigo (`#6c5ce7`), diff-green/diff-red pair (`#16a34a` / `#ef4444`) used consistently for win/loss and health signals, tying back to git's own diff language.
+- Health score bars rebuilt as segmented diff-stat-style bars (flex div segments, not text characters, so they actually stretch to fill the row) instead of generic progress bars.
+- Cursor fix: all buttons now show a pointer cursor (browsers don't do this by default for `<button>`, only `<a>`), disabled buttons show not-allowed.
+- Footer fixed to anchor at the bottom of the viewport on short pages (flex column layout) instead of floating awkwardly under sparse content.
 
 ## Performance & Rate Limits
 
@@ -42,29 +57,19 @@ Running list of known issues, planned improvements, and decisions.
 - **Restrict CORS to the real deployed frontend URL**, not localhost, once live.
 - **Confirm HTTPS is on** for both deployed frontend and backend (usually automatic on Vercel/Render, worth checking).
 - Token stays server-side only (`.env`, never sent to the browser). Keep it that way.
-
-## Legal / Disclaimer / Privacy Notice
-
-- Currently low risk, but not zero-touch: no accounts, no cookies, no analytics. But the rate limiter reads visitor IPs (in-memory only, to enforce the 10/min cap, not stored or linked to anything). Once deployed, the hosting provider (Vercel/Render) will independently log basic access data (IP, timestamp) as standard infrastructure practice.
-- Plan: a real Privacy Notice, linked from a footer, same pattern as any real site.
-- Draft text:
-
-  > This is an educational portfolio project. It pulls public repository data live from GitHub's API and displays it, no accounts, no signup, no cookies, no tracking. Your IP address is used briefly, in memory only, to enforce a rate limit that protects the site from abuse, it isn't stored or linked to anything else. The hosting provider independently logs basic access data (IP, timestamp) as standard practice, governed by their own privacy policy. If the AI summary feature is used, the repository data shown, already public on GitHub, may be sent to Groq's API to generate a short summary. No data here is sold or shared for advertising. This project isn't affiliated with GitHub.
-
-- Worth skimming GitHub's API Terms of Service before going live.
-- Get real legal advice if this ever gets real traffic or money involved.
-
-
+- **Verified clean**: `.env` never entered git history (`git log --all -- backend/.env` returns nothing), no hardcoded keys anywhere in tracked files (`git grep` for both key prefixes returns nothing), no tokens sent to the browser (checked Network tab directly), error responses never leak tracebacks/internals, `cache.db` properly git-ignored.
 
 ## Deployment
 
 - Local `uvicorn`/`npm run dev` are dev-only. Once deployed: frontend on Vercel, backend on Render/Railway, both run independently of whether the local machine is on.
 - Free tiers may spin down the backend after inactivity, slower first response (10-30 sec) after idle. Still reachable, just slower once in a while. Normal for free tiers.
+- **Decided**: accepting that Render's free tier has an ephemeral filesystem, `cache.db` resets on redeploys/restarts. Not treating this as a problem, worst case is a slightly slower first fetch (and that's already fast now thanks to concurrent calls), not a correctness issue. Revisit only if this ever gets heavy sustained traffic.
+- Code is genuinely deployment-ready: hardcoded URLs removed, secrets handled via env vars on both ends, CORS/URL updates are the only things left to change at actual deploy time.
 - Could deploy a basic version earlier than Phase 7 if we want it live/shareable sooner. Optional.
 
 ## Code Structure
 
-- `main.py` is one file, growing. Split into separate files (routes, GitHub logic, scoring logic) once it starts feeling cluttered, worth considering soon given its current size.
+- `main.py` is one file, growing (now includes GitHub logic, caching, health score, and AI summary). Split into separate files (routes, GitHub logic, scoring logic) once it starts feeling cluttered, worth considering soon given its current size.
 
 ## Roadmap
 

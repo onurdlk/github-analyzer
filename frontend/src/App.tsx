@@ -431,10 +431,11 @@ function App() {
       : null
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+      <div className="min-h-screen bg-surface p-8 font-body flex flex-col">
+      <div className="flex-1">
       <h1 className="text-3xl font-display font-bold mb-2 text-gray-900">GitHub Repository Analyzer</h1>
       <button onClick={toggleCompareMode} className="text-sm text-brand font-medium hover:underline mb-6">
-        {compareMode ? 'Switch to single search' : 'Compare two repositories'}
+          {compareMode ? 'Switch to single search' : 'Compare two repositories'}
       </button>
 
       <div className={`grid gap-2 mb-4 ${compareMode ? 'grid-cols-2' : ''}`}>
@@ -508,6 +509,7 @@ function App() {
             )}
           </div>
         )}
+      </div>
       </div>
       <footer className="mt-10 pt-6 border-t border-gray-200 text-center text-xs text-gray-400">
         <button onClick={() => setShowPrivacy(true)} className="underline hover:text-gray-600">

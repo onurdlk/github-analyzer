@@ -96,9 +96,9 @@ function formatCacheAge(seconds: number): string {
 }
 
 function getHealthColor(score: number) {
-  if (score >= 80) return { text: 'text-green-600', bg: 'bg-green-100' }
+  if (score >= 80) return { text: 'text-diff-add', bg: 'bg-diff-add-light' }
   if (score >= 50) return { text: 'text-amber-600', bg: 'bg-amber-100' }
-  return { text: 'text-red-600', bg: 'bg-red-100' }
+  return { text: 'text-diff-remove', bg: 'bg-diff-remove-light' }
 }
 
 interface RepoCardProps {
@@ -160,12 +160,12 @@ function RepoCard({ data, winsStars, winsForks, winsContributors, winsHealth }: 
   const healthColor = getHealthColor(data.health_score.total)
 
   return (
-    <div className="bg-white rounded p-6 shadow">
+    <div className="bg-white rounded-2xl p-6 shadow-lg shadow-gray-200/50 border border-gray-100">
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-center gap-3">
           <h2 className="text-2xl font-bold">{data.name}</h2>
           <span
-            className={`text-sm font-bold px-2 py-1 rounded ${healthColor.bg} ${healthColor.text} ${winsHealth ? 'ring-2 ring-green-400' : ''}`}
+            className={`text-sm font-display font-bold px-2 py-1 rounded-lg ${healthColor.bg} ${healthColor.text} ${winsHealth ? 'ring-2 ring-diff-add' : ''}`}
           >
             {data.health_score.total}/100
           </span>
@@ -185,37 +185,45 @@ function RepoCard({ data, winsStars, winsForks, winsContributors, winsHealth }: 
 
       <p className="text-gray-600 mb-4">{data.description}</p>
       <div className="grid grid-cols-2 gap-4">
-        <div className={`p-4 rounded ${winsStars ? 'bg-green-50 ring-2 ring-green-400' : 'bg-gray-50'}`}>
-          ⭐ Stars: {data.stars}
+        <div className={`p-4 rounded-xl ${winsStars ? 'bg-diff-add-light ring-2 ring-diff-add' : 'bg-gray-50'}`}>
+          ⭐ Stars: <span className="font-display font-semibold">{data.stars}</span>
         </div>
-        <div className={`p-4 rounded ${winsForks ? 'bg-green-50 ring-2 ring-green-400' : 'bg-gray-50'}`}>
-          🍴 Forks: {data.forks}
+        <div className={`p-4 rounded-xl ${winsForks ? 'bg-diff-add-light ring-2 ring-diff-add' : 'bg-gray-50'}`}>
+          🍴 Forks: <span className="font-display font-semibold">{data.forks}</span>
         </div>
-        <div className="bg-gray-50 p-4 rounded">🐛 Open Issues: {data.open_issues}</div>
-        <div className={`p-4 rounded ${winsContributors ? 'bg-green-50 ring-2 ring-green-400' : 'bg-gray-50'}`}>
-          👥 Contributors: {data.contributors_count}
+        <div className="bg-gray-50 p-4 rounded-xl">
+          🐛 Open Issues: <span className="font-display font-semibold">{data.open_issues}</span>
+        </div>
+        <div className={`p-4 rounded-xl ${winsContributors ? 'bg-diff-add-light ring-2 ring-diff-add' : 'bg-gray-50'}`}>
+          👥 Contributors: <span className="font-display font-semibold">{data.contributors_count}</span>
         </div>
       </div>
 
-      <div className="mt-4">
-        <h3 className="font-semibold mb-2">Health Score Breakdown</h3>
-        <div className="space-y-2">
+      <div className="mt-6">
+        <h3 className="font-display font-semibold mb-3 text-sm text-gray-500 uppercase tracking-wide">Health Score Breakdown</h3>
+        <div className="space-y-3">
           {[
             { label: 'Activity', value: data.health_score.breakdown.activity, max: 40 },
             { label: 'Contributors', value: data.health_score.breakdown.contributors, max: 20 },
             { label: 'Documentation', value: data.health_score.breakdown.documentation, max: 20 },
             { label: 'Issue Health', value: data.health_score.breakdown.issues, max: 20 },
-          ].map((item) => (
-            <div key={item.label}>
-              <div className="flex justify-between text-xs text-gray-600 mb-1">
-                <span>{item.label}</span>
-                <span>{item.value}/{item.max}</span>
+          ].map((item) => {
+            const segments = 20
+            const filled = Math.round((item.value / item.max) * segments)
+            return (
+              <div key={item.label} className="flex items-center gap-3">
+                <span className="text-xs text-gray-600 w-24 shrink-0">{item.label}</span>
+                <div className="flex gap-0.5 flex-1">
+                  {Array.from({ length: segments }).map((_, i) => (
+                    <div key={i} className={`h-3 flex-1 rounded-sm ${i < filled ? 'bg-diff-add' : 'bg-gray-100'}`} />
+                  ))}
+                </div>
+                <span className="font-display text-xs text-gray-400 w-12 text-right shrink-0">
+                  {item.value}/{item.max}
+                </span>
               </div>
-              <div className="w-full bg-gray-100 rounded-full h-2">
-                <div className="h-2 rounded-full bg-blue-500" style={{ width: `${(item.value / item.max) * 100}%` }} />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
       <div className="mt-4">
@@ -424,8 +432,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      <h1 className="text-3xl font-bold mb-2">GitHub Repository Analyzer</h1>
-      <button onClick={toggleCompareMode} className="text-sm text-blue-600 underline mb-6">
+      <h1 className="text-3xl font-display font-bold mb-2 text-gray-900">GitHub Repository Analyzer</h1>
+      <button onClick={toggleCompareMode} className="text-sm text-brand font-medium hover:underline mb-6">
         {compareMode ? 'Switch to single search' : 'Compare two repositories'}
       </button>
 
@@ -441,7 +449,7 @@ function App() {
             if (e.key === 'Enter') handleSubmit()
           }}
           placeholder={compareMode ? 'First repository' : 'Enter GitHub repository URL'}
-          className="p-2 border border-gray-300 rounded w-full"
+          className="p-3 border border-gray-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition"
           disabled={isLoading}
           autoFocus
           aria-label="GitHub repository URL"
@@ -468,7 +476,7 @@ function App() {
       <button
         onClick={handleSubmit}
         disabled={isLoading}
-        className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-blue-300 mb-6"
+        className="bg-brand text-white px-5 py-3 rounded-xl font-medium hover:bg-brand/90 active:scale-95 disabled:bg-brand/40 transition mb-6"
       >
         {isLoading ? 'Analyzing...' : compareMode ? 'Compare' : 'Analyze'}
       </button>

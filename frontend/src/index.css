@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: "JetBrains Mono", monospace;
+  --font-body: "Manrope", sans-serif;
+
+  --color-brand: #6c5ce7;
+  --color-brand-light: #ede9fe;
+  --color-diff-add: #16a34a;
+  --color-diff-add-light: #dcfce7;
+  --color-diff-remove: #ef4444;
+  --color-diff-remove-light: #fee2e2;
+  --color-surface: #f9fafc;
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}

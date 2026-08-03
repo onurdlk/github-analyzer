@@ -36,6 +36,14 @@ Running list of known issues, planned improvements, and decisions.
 - Cursor fix: all buttons now show a pointer cursor (browsers don't do this by default for `<button>`, only `<a>`), disabled buttons show not-allowed.
 - Footer fixed to anchor at the bottom of the viewport on short pages (flex column layout) instead of floating awkwardly under sparse content.
 
+## UI Polish (decided, not yet done)
+
+- **Fixing now: mobile responsiveness.** Untested on phone-width screens, comparison mode's side-by-side grid likely breaks. Real functional risk since portfolio links commonly get opened on mobile, not just cosmetic.
+- **Fixing now: leftover second-input styling.** Reverted to old rounded-none gray style during a copy-paste fix earlier, needs to match the redesigned first input.
+- **Deferred, maybe later: empty state for first-time visitors.** Low priority, diminishing returns for this project's actual audience.
+- **Deferred, maybe later: deeper accessibility pass** (Escape closing the modal, more aria-labels beyond the two inputs). Worth doing if accessibility becomes something to showcase specifically, not a current gap that's actually blocking anyone.
+- Decision: polish doesn't have a natural finish line, a live site with minor rough edges beats a flawless one nobody can see. Fix the two real items above, then deploy.
+
 ## Performance & Rate Limits
 
 - Fresh (uncached) search: 1 call for repo info, then 4 more in parallel (contributors, languages, commit activity, README) = 5 GitHub calls total. Cached search: 0 calls.

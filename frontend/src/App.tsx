@@ -111,7 +111,51 @@ interface RepoCardProps {
 
 function RepoCard({ data, winsStars, winsForks, winsContributors, winsHealth }: RepoCardProps) {
   const [timeRange, setTimeRange] = useState<'year' | 'month' | 'week'>('year')
+  const [summary, setSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [summaryError, setSummaryError] = useState('')
+  const [displayedSummary, setDisplayedSummary] = useState('')
 
+  const handleGenerateSummary = async () => {
+    setSummaryLoading(true)
+    setSummaryError('')
+    setSummary(null)
+    setDisplayedSummary('')
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/analyze/${data.owner}/${data.name}/summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          description: data.description,
+          language: data.language,
+          stars: data.stars,
+          forks: data.forks,
+          contributors_count: data.contributors_count,
+          open_issues: data.open_issues,
+          health_score: data.health_score.total,
+        }),
+      })
+      if (!response.ok) {
+        const errData = await response.json()
+        throw new Error(errData.detail || 'Could not generate summary')
+      }
+      const result = await response.json()
+      setSummary(result.summary)
+
+      let i = 0
+      const interval = setInterval(() => {
+        i++
+        setDisplayedSummary(result.summary.slice(0, i))
+        if (i >= result.summary.length) clearInterval(interval)
+      }, 15)
+    } catch (err) {
+      setSummaryError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setSummaryLoading(false)
+    }
+  }    
   const chartData = Array.isArray(data.commit_activity) ? getChartData(timeRange, data.commit_activity) : []
   const healthColor = getHealthColor(data.health_score.total)
 
@@ -140,7 +184,6 @@ function RepoCard({ data, winsStars, winsForks, winsContributors, winsHealth }: 
       </div>
 
       <p className="text-gray-600 mb-4">{data.description}</p>
-
       <div className="grid grid-cols-2 gap-4">
         <div className={`p-4 rounded ${winsStars ? 'bg-green-50 ring-2 ring-green-400' : 'bg-gray-50'}`}>
           ⭐ Stars: {data.stars}
@@ -175,7 +218,31 @@ function RepoCard({ data, winsStars, winsForks, winsContributors, winsHealth }: 
           ))}
         </div>
       </div>
-
+      <div className="mt-4">
+        <h3 className="font-semibold mb-2">AI Summary</h3>
+        {!summary && !summaryLoading && (
+          <button onClick={handleGenerateSummary} className="text-sm text-blue-600 underline">
+            ✨ Generate AI Summary
+          </button>
+        )}
+        {summaryLoading && <p className="text-sm text-gray-400 italic">✨ Generating summary...</p>}
+        {summaryError && (
+          <p className="text-sm text-red-600">
+            {summaryError}{' '}
+            <button onClick={handleGenerateSummary} className="underline">
+              Try again
+            </button>
+          </p>
+        )}
+        {summary && (
+          <div className="bg-blue-50 border border-blue-100 rounded p-3">
+            <p className="text-sm text-gray-700">
+              {displayedSummary}
+              {displayedSummary.length < summary.length && <span className="animate-pulse">▋</span>}
+            </p>
+          </div>
+        )}
+      </div>
       <div className="mt-4">
         <h3 className="font-semibold mb-2">Language Breakdown</h3>
         <div className="space-y-2">

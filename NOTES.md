@@ -14,6 +14,13 @@ Running list of known issues, planned improvements, and decisions.
 - **Rate limiting added on our own API.** `slowapi`, 10 requests/minute per IP on `/analyze`. Protects the shared GitHub token from being drained by a bot or a loop. Returns a clear "Too many requests" message on the frontend instead of a generic error.
 - **Health score and repo comparison built.** Health score formula (activity/contributors/documentation/issues out of 100). Comparison mode fetches two repos in parallel with `Promise.allSettled`, shows them side by side, highlights whichever wins each metric.
 
+## AI Summary Feature (done)
+
+- Groq, Llama 3.3 70B, no card required, no training-data clause, 1,000 req/day free tier.
+- Opt-in button, cached per repo in SQLite (24h TTL), 50/day hard cap independent of caching, 150 max_tokens per call.
+- Frontend does a simple typewriter reveal on the returned text, no real streaming, just animating the already-complete response.
+- Debug print added on Groq API failures (`print(f"Groq API error..."`) so real errors show in the terminal instead of only a generic message reaching the user.
+
 ## Performance & Rate Limits
 
 - Fresh (uncached) search: 1 call for repo info, then 4 more in parallel (contributors, languages, commit activity, README) = 5 GitHub calls total. Cached search: 0 calls.
@@ -47,15 +54,7 @@ Running list of known issues, planned improvements, and decisions.
 - Worth skimming GitHub's API Terms of Service before going live.
 - Get real legal advice if this ever gets real traffic or money involved.
 
-## Planned: AI Summary Feature
 
-- **Provider/model decided: Groq, Llama 3.3 70B.** No card required, no phone verification, no training-data clause on their free models (unlike Gemini/Mistral). 1,000 requests/day, 12,000 tokens/minute free, comfortably above anything our own daily cap will use. Fast inference (Groq's hardware advantage), well-tested model for straightforward instruction-following, not the newest/flashiest, which is a feature here, not a bug, predictability over capability for a task this simple.
-- Switching providers later is cheap if this doesn't work out, one function sends a prompt and gets text back, not a structural dependency.
-- Opt-in only, a "Generate AI Summary" button, not automatic on every search.
-- Cache summaries per repo in SQLite, same idea as the main caching plan.
-- Hard daily cap on total AI generations, independent of caching.
-- Low `max_tokens` limit per call.
-- Set an actual spending cap on the API key in Groq's console, real safety net beyond our own code (though free tier makes this mostly moot).
 
 ## Deployment
 

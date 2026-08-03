@@ -36,22 +36,26 @@ Running list of known issues, planned improvements, and decisions.
 - **Confirm HTTPS is on** for both deployed frontend and backend (usually automatic on Vercel/Render, worth checking).
 - Token stays server-side only (`.env`, never sent to the browser). Keep it that way.
 
-## Legal / Disclaimer
+## Legal / Disclaimer / Privacy Notice
 
-- Not legal advice, just the practical plan. Currently low risk: no accounts, no cookies, no data collection.
-- Gets more relevant if we add analytics, cookies, accounts, or logging of AI requests.
-- Plan: short disclaimer/footer once deployed, educational project, pulls public GitHub data live, not affiliated with GitHub, no stored visitor data, provided as-is.
+- Currently low risk, but not zero-touch: no accounts, no cookies, no analytics. But the rate limiter reads visitor IPs (in-memory only, to enforce the 10/min cap, not stored or linked to anything). Once deployed, the hosting provider (Vercel/Render) will independently log basic access data (IP, timestamp) as standard infrastructure practice.
+- Plan: a real Privacy Notice, linked from a footer, same pattern as any real site.
+- Draft text:
+
+  > This is an educational portfolio project. It pulls public repository data live from GitHub's API and displays it, no accounts, no signup, no cookies, no tracking. Your IP address is used briefly, in memory only, to enforce a rate limit that protects the site from abuse, it isn't stored or linked to anything else. The hosting provider independently logs basic access data (IP, timestamp) as standard practice, governed by their own privacy policy. If the AI summary feature is used, the repository data shown, already public on GitHub, may be sent to Groq's API to generate a short summary. No data here is sold or shared for advertising. This project isn't affiliated with GitHub.
+
 - Worth skimming GitHub's API Terms of Service before going live.
 - Get real legal advice if this ever gets real traffic or money involved.
 
 ## Planned: AI Summary Feature
 
+- **Provider/model decided: Groq, Llama 3.3 70B.** No card required, no phone verification, no training-data clause on their free models (unlike Gemini/Mistral). 1,000 requests/day, 12,000 tokens/minute free, comfortably above anything our own daily cap will use. Fast inference (Groq's hardware advantage), well-tested model for straightforward instruction-following, not the newest/flashiest, which is a feature here, not a bug, predictability over capability for a task this simple.
+- Switching providers later is cheap if this doesn't work out, one function sends a prompt and gets text back, not a structural dependency.
 - Opt-in only, a "Generate AI Summary" button, not automatic on every search.
 - Cache summaries per repo in SQLite, same idea as the main caching plan.
 - Hard daily cap on total AI generations, independent of caching.
 - Low `max_tokens` limit per call.
-- Set an actual spending cap on the API key in the provider's console, real safety net beyond our own code.
-- **Model not decided yet.** Compared per-token pricing: GPT-5 nano ($0.05/$0.40 per million), Gemini 3.1 Flash-Lite ($0.25/$1.50), Gemini 2.5 Flash ($0.30/$2.50), Claude Haiku 4.5 ($1.00/$5.00). Haiku isn't the cheapest for a task this simple, but at our scale the dollar difference is basically nothing. Decide on ease of integration when we build it, not price. DeepSeek is cheapest overall but has different data/privacy terms, worth weighing given our privacy stance above.
+- Set an actual spending cap on the API key in Groq's console, real safety net beyond our own code (though free tier makes this mostly moot).
 
 ## Deployment
 

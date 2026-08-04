@@ -28,11 +28,15 @@ Frontend (Vercel) → FastAPI backend (Render) → GitHub API + Groq API, with S
 
 
 github-analyzer/
-├── backend/     FastAPI server, GitHub/Groq API integration, SQLite caching
-├── frontend/    React + TypeScript + Vite app
-├── NOTES.md     Running log of decisions, known issues, and fixes
-├── PRIVACY.md   Privacy notice
-└── LICENSE      MIT
+├──backend/     FastAPI server, GitHub/Groq API integration, SQLite caching
+
+├──frontend/    React + TypeScript + Vite app
+
+├──NOTES.md     Running log of decisions, known issues, and fixes
+
+├──PRIVACY.md   Privacy notice
+
+└──LICENSE      MIT
 
 
 ## License

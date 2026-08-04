@@ -14,6 +14,8 @@ Running list of known issues, planned improvements, and decisions.
 - **Rate limiting added on our own API.** `slowapi`, 10 requests/minute per IP on `/analyze`. Protects the shared GitHub token from being drained by a bot or a loop. Returns a clear "Too many requests" message on the frontend instead of a generic error.
 - **Health score and repo comparison built.** Health score formula (activity/contributors/documentation/issues out of 100). Comparison mode fetches two repos in parallel with `Promise.allSettled`, shows them side by side, highlights whichever wins each metric.
 - **Backend URL no longer hardcoded.** Frontend reads `VITE_API_URL` from an environment variable instead of hardcoding `127.0.0.1:8000`. Set in `frontend/.env` locally, will be set in Vercel's dashboard at deploy time. `.env.example` documents it.
+- **Mobile responsiveness fixed.** Comparison grid and page padding now responsive (stacked on narrow screens, side-by-side from 640px up). Tested on iPhone SE and iPad widths.
+- **Second input styling fixed.** Now matches the first input's redesigned look.
 
 ## AI Summary Feature (done)
 
@@ -36,10 +38,9 @@ Running list of known issues, planned improvements, and decisions.
 - Cursor fix: all buttons now show a pointer cursor (browsers don't do this by default for `<button>`, only `<a>`), disabled buttons show not-allowed.
 - Footer fixed to anchor at the bottom of the viewport on short pages (flex column layout) instead of floating awkwardly under sparse content.
 
-## UI Polish (decided, not yet done)
-
-- **Fixing now: mobile responsiveness.** Untested on phone-width screens, comparison mode's side-by-side grid likely breaks. Real functional risk since portfolio links commonly get opened on mobile, not just cosmetic.
-- **Fixing now: leftover second-input styling.** Reverted to old rounded-none gray style during a copy-paste fix earlier, needs to match the redesigned first input.
+## UI Polish
+- **Mobile responsiveness fixed.** Comparison grid and page padding now responsive (stacked on narrow screens, side-by-side from 640px up). Tested on iPhone SE and iPad widths.
+- **Second input styling fixed.** Now matches the first input's redesigned look.
 - **Deferred, maybe later: empty state for first-time visitors.** Low priority, diminishing returns for this project's actual audience.
 - **Deferred, maybe later: deeper accessibility pass** (Escape closing the modal, more aria-labels beyond the two inputs). Worth doing if accessibility becomes something to showcase specifically, not a current gap that's actually blocking anyone.
 - Decision: polish doesn't have a natural finish line, a live site with minor rough edges beats a flawless one nobody can see. Fix the two real items above, then deploy.

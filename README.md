@@ -28,6 +28,7 @@ Frontend (Vercel) → FastAPI backend (Render) → GitHub API + Groq API, with S
 
 
 github-analyzer/
+
 ├──backend/     FastAPI server, GitHub/Groq API integration, SQLite caching
 
 ├──frontend/    React + TypeScript + Vite app

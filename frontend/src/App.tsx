@@ -431,14 +431,14 @@ function App() {
       : null
 
   return (
-      <div className="min-h-screen bg-surface p-8 font-body flex flex-col">
+      <div className="min-h-screen bg-surface p-4 sm:p-8 font-body flex flex-col">
       <div className="flex-1">
       <h1 className="text-3xl font-display font-bold mb-2 text-gray-900">GitHub Repository Analyzer</h1>
       <button onClick={toggleCompareMode} className="text-sm text-brand font-medium hover:underline mb-6">
           {compareMode ? 'Switch to single search' : 'Compare two repositories'}
       </button>
 
-      <div className={`grid gap-2 mb-4 ${compareMode ? 'grid-cols-2' : ''}`}>
+      <div className={`grid gap-2 mb-4 ${compareMode ? 'grid-cols-1 sm:grid-cols-2' : ''}`}>
         <input
           type="text"
           value={repoUrl}
@@ -467,7 +467,7 @@ function App() {
               if (e.key === 'Enter') handleSubmit()
             }}
             placeholder="Second repository"
-            className="p-2 border border-gray-300 rounded w-full"
+            className="p-3 border border-gray-200 rounded-xl w-full focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition"
             disabled={isLoading}
             aria-label="Second GitHub repository URL"
           />
@@ -482,7 +482,7 @@ function App() {
         {isLoading ? 'Analyzing...' : compareMode ? 'Compare' : 'Analyze'}
       </button>
 
-      <div className={compareMode ? 'grid grid-cols-2 gap-4' : ''}>
+      <div className={compareMode ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : ''}>
         <div>
           {error && <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded mb-4">{error}</div>}
           {results && (

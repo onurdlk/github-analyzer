@@ -511,10 +511,26 @@ function App() {
         )}
       </div>
       </div>
-      <footer className="mt-10 pt-6 border-t border-gray-200 text-center text-xs text-gray-400">
+      <footer className="mt-10 pt-6 border-t border-gray-200 text-center text-xs text-gray-400 space-x-4">
         <button onClick={() => setShowPrivacy(true)} className="underline hover:text-gray-600">
           Privacy
         </button>
+        <a    
+          href="https://github.com/onurdlk"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-gray-600"
+        >
+          Follow me for more projects!
+        </a>
+        <a
+          href="https://github.com/onurdlk/github-analyzer"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-gray-600"
+        >
+          View Source
+        </a>
       </footer>
 
       {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}

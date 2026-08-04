@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://github-analyzer-beta-steel.vercel.app/sitemap.xml

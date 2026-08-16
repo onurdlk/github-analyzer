@@ -274,7 +274,7 @@ def generate_summary(request: Request, owner: str, repo: str, payload: SummaryRe
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
             json={
-                "model": "llama-3.3-70b-versatile",
+                "model": "openai/gpt-oss-120b",
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 150,
                 "temperature": 0.4,

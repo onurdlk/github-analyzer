@@ -276,7 +276,8 @@ def generate_summary(request: Request, owner: str, repo: str, payload: SummaryRe
             json={
                 "model": "openai/gpt-oss-120b",
                 "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 150,
+                "max_completion_tokens": 300,
+                "reasoning_effort": "low",
                 "temperature": 0.4,
             },
             timeout=15,

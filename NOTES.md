@@ -20,10 +20,18 @@ Running list of known issues, planned improvements, and decisions.
 
 ## AI Summary Feature (done)
 
-- Groq, Llama 3.3 70B, no card required, no training-data clause, 1,000 req/day free tier.
-- Opt-in button, cached per repo in SQLite (24h TTL), 50/day hard cap independent of caching, 150 max_tokens per call.
+- Groq, **openai/gpt-oss-120b** (switched from llama-3.3-70b-versatile, deprecated by Groq in August 2026, see below). No card required, 1,000 req/day, 200K tokens/day free tier.
+- Opt-in button, cached per repo in SQLite (24h TTL), 50/day hard cap independent of caching.
 - Frontend does a simple typewriter reveal on the returned text, no real streaming, just animating the already-complete response.
 - Debug print added on Groq API failures so real errors show in the terminal instead of only a generic message reaching the user.
+
+- **Model deprecation, August 2026.** Groq emailed announcing llama-3.3-70b-versatile's shutdown, recommended openai/gpt-oss-120b or qwen/qwen3.6-27b. Went with gpt-oss-120b, Groq's primary recommendation, higher daily token ceiling than the old model (200K vs 100K), cheaper per token. One-line model string change, tested locally, then pushed (Render auto-deploys on push, went live same-day).
+
+- **Bug found post-switch: summaries were cutting off mid-sentence.** Root cause: gpt-oss-120b is a reasoning model, unlike the old Llama model, it generates an internal reasoning phase before the actual answer, and `max_tokens` caps that combined total, not just the visible output. The old 150-token limit was mostly consumed by silent reasoning, leaving little room for the real answer.
+  - **Fix**: switched `max_tokens` → `max_completion_tokens: 300` (the parameter Groq's own docs use for this model) and added `reasoning_effort: "low"` (unnecessary for a task this simple, frees up more of the budget for the actual answer).
+  - **Debugging note worth remembering**: after the fix, a retest showed the exact same truncated text, byte for byte, which was the giveaway it wasn't the model settings, it was the 24h summary cache silently serving the old, stale response for repos already tested before the fix. Identical output on a retry (with temperature > 0) is a strong signal of a cache hit, not a live regeneration. Fixed locally by deleting `cache.db` and restarting. On Render, redeploys wipe the (ephemeral) disk anyway, so pushing the fix cleared production's stale cache as a side effect, confirmed by retesting live afterward rather than assuming.
+
+- **Lesson for later**: third-party API models can be deprecated with real short notice. Worth periodically checking Groq's deprecations page (console.groq.com/docs/deprecations) if this feature ever starts failing or behaving oddly again, that's exactly what happened here, caught via their email, not a bug we introduced.
 
 ## Privacy Notice (done)
 

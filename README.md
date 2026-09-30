@@ -3,6 +3,7 @@
 A full-stack web app that analyzes any public GitHub repository and returns real stats, a health score, commit activity trends, and an AI-generated summary, all pulled live from GitHub's API.
 
 **Live app**: https://github-analyzer-beta-steel.vercel.app
+![Demo](assets/github-analyzerdemonstration.gif)
 
 ## Features
 
